@@ -77,15 +77,23 @@ function Get-GraphServicePrincipal { param([string]$AppId) Get-MgServicePrincipa
 function Get-ExistingAllPrincipalsGrant { param([string]$ClientId,[string]$ResourceId) Get-MgOauth2PermissionGrant -Filter "clientId eq '$ClientId' and resourceId eq '$ResourceId' and consentType eq '$AllPrincipalsConsentType'" }
 
 function Ensure-ScopeOnGrant {
-    param($Grant,[string]$ScopeToAdd)
+    param($Grant, [string]$ScopesToAdd)
     $existingScopes = @()
     if ($Grant.Scope) { $existingScopes = $Grant.Scope -split '\s+' | Where-Object { $_ } }
-    if ($existingScopes -contains $ScopeToAdd) { return }
-    $newScope = ($existingScopes + $ScopeToAdd | Sort-Object -Unique) -join ' '
+    # Split the scopes to add (handles space-separated string)
+    $scopesToAddArray = $ScopesToAdd -split '\s+' | Where-Object { $_ }
+    # Check if all scopes are already present
+    $allPresent = $true
+    foreach ($scope in $scopesToAddArray) {
+        if ($existingScopes -notcontains $scope) { $allPresent = $false; break }
+    }
+    if ($allPresent) { return }
+    # Merge existing and new scopes
+    $newScope = ($existingScopes + $scopesToAddArray | Sort-Object -Unique) -join ' '
     Update-MgOauth2PermissionGrant -OAuth2PermissionGrantId $Grant.Id -Scope $newScope -ErrorAction Stop | Out-Null
 }
 
-function Create-AllPrincipalsGrant { param([string]$ClientId,[string]$ResourceId,[string]$Scope) New-MgOauth2PermissionGrant -BodyParameter @{clientId=$ClientId;consentType=$AllPrincipalsConsentType;resourceId=$ResourceId;scope=$Scope} -ErrorAction Stop }
+function Create-AllPrincipalsGrant { param([string]$ClientId, [string]$ResourceId, [string]$Scope) New-MgOauth2PermissionGrant -BodyParameter @{clientId = $ClientId; consentType = $AllPrincipalsConsentType; resourceId = $ResourceId; scope = $Scope } -ErrorAction Stop }
 
 try {
     Initialize-SpecificGraphModules
@@ -105,11 +113,11 @@ try {
     if (-not ($CallingAppId -match '^[0-9a-fA-F-]{36}$')) { throw "Calling App ID '$CallingAppId' is not a valid GUID." }
 
     $clientSp = Get-OrCreateServicePrincipalByAppId -AppId $CallingAppId
-    $graphSp  = Get-GraphServicePrincipal -AppId $GraphAppId
+    $graphSp = Get-GraphServicePrincipal -AppId $GraphAppId
 
     $existingGrants = Get-ExistingAllPrincipalsGrant -ClientId $clientSp.Id -ResourceId $graphSp.Id
     if ($existingGrants) {
-        foreach ($grant in $existingGrants) { Ensure-ScopeOnGrant -Grant $grant -ScopeToAdd $TargetScope }
+        foreach ($grant in $existingGrants) { Ensure-ScopeOnGrant -Grant $grant -ScopesToAdd $TargetScope }
     } else { Create-AllPrincipalsGrant -ClientId $clientSp.Id -ResourceId $graphSp.Id -Scope $TargetScope | Out-Null }
 
     Write-Host "Grant ensured for scope '$TargetScope'." -ForegroundColor Green
