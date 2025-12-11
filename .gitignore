@@ -3,6 +3,14 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
+# Secrets and environment files
+.env
+.env.local
+.env.*.local
+*.env
+scripts/.env.local
+scripts/agentuser-config.json
+
 # User-specific files
 *.suo
 *.user

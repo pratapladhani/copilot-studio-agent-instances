@@ -233,6 +233,13 @@ if ($ConfigFile -and (Test-Path $ConfigFile)) {
         if ($usageLocation) {
             Write-Host "  • Usage Location: $usageLocation" -ForegroundColor Gray
         }
+        
+        # Prompt for secret if not provided or placeholder
+        if ([string]::IsNullOrWhiteSpace($ClientSecret) -or $ClientSecret -eq "PASTE_YOUR_SECRET_HERE") {
+            Write-Host ""
+            Write-Host "  • Agent Blueprint Client Secret: " -ForegroundColor Gray -NoNewline
+            $ClientSecret = Read-Host
+        }
     }
     catch {
         Write-Host "ERROR: Failed to read configuration file" -ForegroundColor Red

@@ -137,15 +137,17 @@ function createFederatedIdentityCredential {
     )
     
     $federatedCredential = @{
-        Name      = $CredentialName
-        Issuer    = "https://login.microsoftonline.com/$TenantId/v2.0"
-        Subject   = $MsiPrincipalId
-        Audiences = @("api://AzureADTokenExchange")
+        name      = $CredentialName
+        issuer    = "https://login.microsoftonline.com/$TenantId/v2.0"
+        subject   = $MsiPrincipalId
+        audiences = @("api://AzureADTokenExchange")
     }
     
-    $response = New-MgApplicationFederatedIdentityCredential `
-        -ApplicationId $AgentBlueprintObjectId `
-        -BodyParameter $federatedCredential
+    # Use Invoke-MgGraphRequest with beta API for Agent Blueprint compatibility
+    $response = Invoke-MgGraphRequest -Method POST `
+        -Uri "https://graph.microsoft.com/beta/applications/$AgentBlueprintObjectId/federatedIdentityCredentials" `
+        -Body ($federatedCredential | ConvertTo-Json) `
+        -ContentType "application/json"
     
     return $response
 }
@@ -153,7 +155,7 @@ function createFederatedIdentityCredential {
 # Function to read MCP scopes from ToolingManifest.json
 function Get-McpScopesFromManifest {
     param(
-        [Parameter(Mandatory=$false)]
+        [Parameter(Mandatory = $false)]
         [string]$ManifestPath
     )
     
@@ -164,7 +166,8 @@ function Get-McpScopesFromManifest {
         $defaultManifestPath = Join-Path $PSScriptRoot "ToolingManifest.json"
         if (Test-Path $defaultManifestPath) {
             $ManifestPath = $defaultManifestPath
-        } else {
+        }
+        else {
             Write-Host "INFO: No ToolingManifest.json found at $defaultManifestPath, skipping MCP scopes" -ForegroundColor Yellow
             return $mcpScopes
         }
@@ -201,11 +204,13 @@ function Get-McpScopesFromManifest {
         
         if ($mcpScopes.Count -gt 0) {
             Write-Host "Total MCP scopes found: $($mcpScopes.Count)" -ForegroundColor Cyan
-        } else {
+        }
+        else {
             Write-Host "No MCP scopes found in manifest" -ForegroundColor Yellow
         }
         
-    } catch {
+    }
+    catch {
         Write-Host "WARNING: Failed to read ToolingManifest.json: $($_.Exception.Message)" -ForegroundColor Yellow
         Write-Host "Continuing without MCP scopes..." -ForegroundColor Yellow
     }
@@ -216,16 +221,16 @@ function Get-McpScopesFromManifest {
 # Function to configure Agent Blueprint Scope
 function configureAgentBlueprintScope {
     param(
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [string]$TenantId,
         
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [string]$AgentBlueprintObjectId,
         
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [string]$AgentBlueprintId,
         
-        [Parameter(Mandatory=$false)]
+        [Parameter(Mandatory = $false)]
         [string]$ToolingManifestPath
     )
 
@@ -239,10 +244,10 @@ function configureAgentBlueprintScope {
     $defaultScope = @{
         adminConsentDescription = "Allow the application to access the agent on behalf of the signed-in user."
         adminConsentDisplayName = "Access agent"
-        id = $defaultScopeId
-        isEnabled = $true
-        type = "User"
-        value = "access_agent"
+        id                      = $defaultScopeId
+        isEnabled               = $true
+        type                    = "User"
+        value                   = "access_agent"
     }
     $scopes += $defaultScope
     
@@ -254,10 +259,10 @@ function configureAgentBlueprintScope {
         $mcpScopeObj = @{
             adminConsentDescription = "Allow the application to access MCP server requiring scope: $mcpScope"
             adminConsentDisplayName = "MCP Access: $mcpScope"
-            id = $mcpScopeId
-            isEnabled = $true
-            type = "User"
-            value = $mcpScope
+            id                      = $mcpScopeId
+            isEnabled               = $true
+            type                    = "User"
+            value                   = $mcpScope
         }
         $scopes += $mcpScopeObj
         Write-Host "Added MCP scope to blueprint: $mcpScope" -ForegroundColor Green
@@ -265,9 +270,18 @@ function configureAgentBlueprintScope {
     
     Write-Host "Configuring blueprint with $($scopes.Count) OAuth2 permission scopes" -ForegroundColor Cyan
 
-    $response = Update-MgApplication -ApplicationId $AgentBlueprintObjectId `
-        -IdentifierUris @($IdentifierUri) `
-        -Api @{ oauth2PermissionScopes = $scopes }
+    # Use Invoke-MgGraphRequest with beta API for Agent Blueprint compatibility
+    $body = @{
+        identifierUris = @($IdentifierUri)
+        api            = @{
+            oauth2PermissionScopes = $scopes
+        }
+    }
+    
+    $response = Invoke-MgGraphRequest -Method PATCH `
+        -Uri "https://graph.microsoft.com/beta/applications/$AgentBlueprintObjectId" `
+        -Body ($body | ConvertTo-Json -Depth 10) `
+        -ContentType "application/json"
     
     return $response
 }

@@ -1,0 +1,57 @@
+{
+  "$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/vDevPreview/MicrosoftTeams.schema.json",
+  "manifestVersion": "devPreview",
+  "version": "1.0.0",
+  "id": "6ca4a30f-7bc3-4198-a30a-a3a7c8be9326",
+  "developer": {
+    "name": "Contoso",
+    "websiteUrl": "https://contoso.com",
+    "privacyUrl": "https://contoso.com/privacy",
+    "termsOfUseUrl": "https://contoso.com/terms"
+  },
+  "name": {
+    "short": "Agent 365",
+    "full": "Agent 365 - AI Assistant"
+  },
+  "description": {
+    "short": "AI-powered assistant for Microsoft 365",
+    "full": "Agent 365 is an AI-powered assistant that helps you work more efficiently in Microsoft 365. It can help with documents, emails, chats, and more."
+  },
+  "icons": {
+    "color": "color-icon.png",
+    "outline": "outline-icon.png"
+  },
+  "accentColor": "#4464ee",
+  "validDomains": [],
+  "webApplicationInfo": {
+    "id": "6ca4a30f-7bc3-4198-a30a-a3a7c8be9326",
+    "resource": "api://6ca4a30f-7bc3-4198-a30a-a3a7c8be9326"
+  },
+  "bots": [
+    {
+      "botId": "6ca4a30f-7bc3-4198-a30a-a3a7c8be9326",
+      "scopes": ["personal", "team", "groupChat", "copilot"],
+      "supportsFiles": false,
+      "isNotificationOnly": false
+    }
+  ],
+  "copilotAgents": {
+    "customEngineAgents": [
+      {
+        "id": "6ca4a30f-7bc3-4198-a30a-a3a7c8be9326",
+        "type": "bot",
+        "disclaimer": {
+          "text": "This agent uses AI. Please verify important information."
+        },
+        "functionsAs": "agenticUserOnly",
+        "agenticUserTemplateId": "digitalWorkerTemplate"
+      }
+    ]
+  },
+  "agenticUserTemplates": [
+    {
+      "id": "digitalWorkerTemplate",
+      "file": "agenticUserTemplateManifest.json"
+    }
+  ]
+}

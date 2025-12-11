@@ -2,6 +2,53 @@
 
 This directory contains scripts to help you set up Agent Blueprint, Agent Identities, and Agent Users for the Kairo platform.
 
+## Scripts Overview
+
+| Script | Purpose | Run Once/Per Agent |
+|--------|---------|-------------------|
+| `DelegatedAgentApplicationCreateConsent.ps1` | Grant permissions to create Agent Applications | Once |
+| `createAgentBlueprint.ps1` | Create the Agent Blueprint | Once |
+| `Add-AgentBlueprintPermissions.ps1` | Configure inheritable permissions | Once |
+| `createAzureBotService.ps1` | Create Azure Bot Service and Teams channel | Once |
+| `createAgenticUser.ps1` | Create Agent Identity and Agent User | Per Agent |
+| `Configure-CopilotStudioAgent.ps1` | Connect AgenticRelay to a Copilot Studio Agent | Once |
+| `Verify-AgentSetup.ps1` | Verify all setup steps are complete | As needed |
+
+## Quick Start
+
+```powershell
+# Step 1: Grant permissions (requires Global Admin)
+.\DelegatedAgentApplicationCreateConsent.ps1 -TenantId "<tenant-id>" -CallingAppId "14d82eec-204b-4c2f-b7e8-296a70dab67e"
+
+# Step 2: Create Agent Blueprint
+.\createAgentBlueprint.ps1 -ConfigFile ".\config.json"
+
+# Step 3: Add Power Platform API permissions
+.\Add-AgentBlueprintPermissions.ps1 -TenantId "<tenant-id>" -AgentBlueprintAppId "<app-id>" -ResourceAppId "8578e004-a5c6-46e7-913e-12f58912df43" -Scopes "CopilotStudio.Copilots.Invoke"
+
+# Step 4: Add Messaging Bot API permissions
+.\Add-AgentBlueprintPermissions.ps1 -TenantId "<tenant-id>" -AgentBlueprintAppId "<app-id>" -ResourceAppId "5a807f24-c9de-44ee-a3a7-329e88a00ffc" -AllAllowed
+
+# Step 5: Create Agent Blueprint Client Secret (needed for Step 8)
+az ad app credential reset --id "<agent-blueprint-app-id>" --display-name "AgentBlueprintSecret" --years 1
+# ⚠️ Save the password from the output!
+
+# Step 6: Create Azure Bot Service (one-time setup)
+.\createAzureBotService.ps1 -TenantId "<tenant-id>" -AgentBlueprintAppId "<app-id>" -ResourceGroup "<rg-name>" -BotName "<bot-name>" -MessagingEndpoint "https://<your-app>.azurewebsites.net/api/messages" -EnableTeamsChannel
+
+# Step 7: Verify setup
+.\Verify-AgentSetup.ps1
+
+# Step 8: Create Agent Identity and Agent User (per agent)
+.\createAgenticUser.ps1 -ConfigFile "agentuser-config.json"
+# You'll be prompted for the secret from Step 5
+
+# Step 9: Configure Copilot Studio Agent connection
+.\Configure-CopilotStudioAgent.ps1
+```
+
+---
+
 ## Creating the Agent Blueprint
 
 ### Prerequisite – Script #1
@@ -101,4 +148,196 @@ Content-Type: application/json
 ```
 
 Refer to [Agent User README](README_AgentUserCreation.md) for next steps on creation agent identity, user and granting permissions at identity level.
+
+---
+
+## Creating Agent Blueprint Client Secret
+
+Before creating Agent Identities, you need a client secret for the Agent Blueprint. This is used to authenticate when creating Agent Identities.
+
+**Create the secret:**
+```powershell
+az ad app credential reset --id "<agent-blueprint-app-id>" --display-name "AgentBlueprintSecret" --years 1
+```
+
+**⚠️ Important:** Save the `password` from the output! You'll need it when running `createAgenticUser.ps1`.
+
+The secret is only displayed once. If you lose it, you'll need to create a new one.
+
+---
+
+## Creating Azure Bot Service
+
+The Azure Bot Service acts as the routing layer between Microsoft 365 channels (Teams, Outlook) and your AgenticRelay backend. **This only needs to be done once per Agent Blueprint.**
+
+### createAzureBotService.ps1
+
+**Prerequisites:**
+- Azure CLI (`az`) - Must be logged in
+- An Agent Blueprint already created
+- AgenticRelay App Service already deployed
+
+**Interactive mode:**
+```powershell
+.\createAzureBotService.ps1 -EnableTeamsChannel
+```
+
+**With parameters:**
+```powershell
+.\createAzureBotService.ps1 `
+  -TenantId "<tenant-id>" `
+  -AgentBlueprintAppId "<agent-blueprint-app-id>" `
+  -ResourceGroup "rg-agent365" `
+  -BotName "bot-agent365" `
+  -BotDisplayName "Agent 365 Bot" `
+  -MessagingEndpoint "https://app-agenticrelay-365.azurewebsites.net/api/messages" `
+  -EnableTeamsChannel
+```
+
+**With config file:**
+
+Sample `bot-config.json`:
+```json
+{
+    "TenantId": "",
+    "AgentBlueprintAppId": "",
+    "ResourceGroup": "rg-agent365",
+    "BotName": "bot-agent365",
+    "BotDisplayName": "Agent 365 Bot",
+    "MessagingEndpoint": "https://app-agenticrelay-365.azurewebsites.net/api/messages",
+    "EnableTeamsChannel": true
+}
+```
+
+```powershell
+.\createAzureBotService.ps1 -ConfigFile "bot-config.json"
+```
+
+### After Running the Script
+
+Navigate to the Teams Developer Portal to connect notifications:
+1. Go to: https://dev.teams.microsoft.com/tools/agent-blueprint
+2. Select your Agent Blueprint
+3. Go to **Configuration**
+4. Set **Agent type** = **Bot based**
+5. Paste the Bot App ID (same as Agent Blueprint App ID)
+6. Save
+
+---
+
+## Configuring Copilot Studio Agent Connection
+
+### Configure-CopilotStudioAgent.ps1
+
+This script connects your deployed AgenticRelay App Service to a specific Copilot Studio Agent.
+
+**Prerequisites:**
+- Power Platform CLI (`pac`) - Install with: `dotnet tool install --global Microsoft.PowerApps.CLI.Tool`
+- Azure CLI (`az`) - Must be logged in
+- A deployed App Service running AgenticRelay
+- A Copilot Studio Agent to connect to
+
+**Interactive mode (recommended):**
+```powershell
+.\Configure-CopilotStudioAgent.ps1
+```
+
+The script will:
+1. Authenticate to Power Platform
+2. List your environments and let you select one
+3. List Copilot Studio agents in that environment
+4. Get the Direct Connect URL for the selected agent
+5. Prompt for Agent Identity credentials
+6. Update the App Service configuration
+7. Optionally restart the App Service
+
+**With parameters:**
+```powershell
+.\Configure-CopilotStudioAgent.ps1 `
+  -ResourceGroup "rg-agent365" `
+  -AppServiceName "app-agenticrelay-365" `
+  -AgentIdentityAppId "<agent-identity-app-id>" `
+  -AgentIdentitySecret "<secret>" `
+  -EnvironmentId "<power-platform-env-id>" `
+  -AgentSchemaName "<agent-schema-name>"
+```
+
+**Skip Agent Identity (if already configured):**
+```powershell
+.\Configure-CopilotStudioAgent.ps1 -SkipAgentIdentity
+```
+
+---
+
+## Verifying Setup
+
+### Verify-AgentSetup.ps1
+
+This script verifies that all setup steps have been completed correctly.
+
+**Usage:**
+```powershell
+.\Verify-AgentSetup.ps1
+```
+
+**What it checks:**
+1. Agent Blueprint Application exists
+2. Service Principal exists
+3. Federated Identity Credential (MSI link)
+4. OAuth2 Scopes (access_agent)
+5. Inheritable Permissions
+6. Admin Consent Grants (Microsoft Graph)
+7. App Service is running
+8. Power Platform API permissions
+9. Messaging Bot API permissions
+
+**With custom parameters:**
+```powershell
+.\Verify-AgentSetup.ps1 `
+  -TenantId "<tenant-id>" `
+  -AgentBlueprintAppId "<app-id>" `
+  -ServicePrincipalId "<sp-id>" `
+  -MsiPrincipalId "<msi-id>" `
+  -AppServiceUrl "https://your-app.azurewebsites.net"
+```
+
+---
+
+## Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         Agent Blueprint                                  │
+│                    (Permission template)                                 │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                          Agent Identity                                  │
+│                    (App registration per agent)                          │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                            Agent User                                    │
+│                    (User identity for the agent)                         │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                     AgenticRelay (App Service)                           │
+│              Connects Agent User to Copilot Studio Agent                │
+│                                                                          │
+│  appsettings.json / App Settings:                                       │
+│    - CopilotStudioAgent__DirectConnectUrl                               │
+│    - Connections__ServiceConnection__Settings__ClientId                  │
+│    - Connections__ServiceConnection__Settings__ClientSecret             │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                       Copilot Studio Agent                               │
+│                    (Your AI agent logic)                                │
+└─────────────────────────────────────────────────────────────────────────┘
+```
 

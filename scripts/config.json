@@ -1,0 +1,8 @@
+{
+  "TenantId": "b4d63962-b17c-4e17-b121-b6d6e227ba06",
+  "MsiPrincipalId": "3990b8e7-9665-44eb-9cd8-50014430633d",
+  "AgentBlueprintDisplayName": "Agent 365 Blueprint",
+  "ResourceGroup": "rg-agent365",
+  "AppServiceName": "app-agenticrelay-365",
+  "DirectConnectUrl": "https://21fe740ab4dae2369a2bff542b99c8.08.environment.api.powerplatform.com/copilotstudio/dataverse-backed/authenticated/bots/contoso_websiteQA/conversations?api-version=2022-03-01-preview"
+}
