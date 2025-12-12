@@ -39,7 +39,7 @@ https://login.microsoftonline.com/<TenantId>/v2.0/adminconsent?client_id=<AgentI
 **Note:** This is giving access to `User.ReadBasic.All Mail.Send Mail.Read Chat.Read Chat.ReadWrite`, you can expand the permissions if needed.
 if it redirects after accepting using permissions and we see https://entra.microsoft.com/TokenAuthorize?admin_consent=True in the url, then its done. Permissions can be validated for the Agent Identity Id in the azure portal.
 
-**Example for non-Graph scopes** (Connectivity.Connections.Read needed for MCP Tools):
+**Example for non-Graph scopes**:
 ```
 https://login.microsoftonline.com/5369a35c-46a5-4677-8ff9-2e65587654e7/v2.0/adminconsent?client_id=416fa9f7-e69d-4e7b-8c8f-7b116634d34e&scope=8578e004-a5c6-46e7-913e-12f58912df43/Connectivity.Connections.Read&redirect_uri=https://entra.microsoft.com/TokenAuthorize&state=xyz123
 ```
