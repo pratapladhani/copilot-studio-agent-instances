@@ -9,10 +9,18 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using OBOAuthorization;
+using System;
+using System.IO;
+using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+
+// Add Application Insights telemetry
+builder.Services.AddApplicationInsightsTelemetry();
 
 builder.Services.AddHttpClient();
 
@@ -38,6 +46,58 @@ builder.Services.AddAgentAspNetAuthentication(builder.Configuration);
 builder.Services.AddSingleton<Microsoft.Agents.Builder.IMiddleware[]>([new TranscriptLoggerMiddleware(new FileTranscriptLogger())]);
 
 WebApplication app = builder.Build();
+
+// Add request logging middleware - only log /api/messages requests
+app.Use(async (context, next) =>
+{
+    var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
+
+    // Only log POST to /api/messages (skip health checks and GET requests)
+    if (context.Request.Method == "POST" && context.Request.Path.StartsWithSegments("/api/messages"))
+    {
+        logger.LogInformation("========================================");
+        logger.LogInformation(">>> BOT MESSAGE RECEIVED <<<");
+        logger.LogInformation("========================================");
+
+        // Read and log the body
+        context.Request.EnableBuffering();
+        using var reader = new StreamReader(context.Request.Body, Encoding.UTF8, leaveOpen: true);
+        var body = await reader.ReadToEndAsync();
+        context.Request.Body.Position = 0;
+
+        if (!string.IsNullOrEmpty(body))
+        {
+            // Parse and show key fields
+            try
+            {
+                var json = System.Text.Json.JsonDocument.Parse(body);
+                var root = json.RootElement;
+                var type = root.TryGetProperty("type", out var t) ? t.GetString() : "unknown";
+                var text = root.TryGetProperty("text", out var tx) ? tx.GetString() : "";
+                var channelId = root.TryGetProperty("channelId", out var ch) ? ch.GetString() : "unknown";
+                var from = root.TryGetProperty("from", out var f) && f.TryGetProperty("name", out var fn) ? fn.GetString() : "unknown";
+
+                logger.LogInformation("  Channel: {Channel}", channelId);
+                logger.LogInformation("  Type: {Type}", type);
+                logger.LogInformation("  From: {From}", from);
+                logger.LogInformation("  Text: {Text}", text);
+            }
+            catch
+            {
+                var logBody = body.Length > 300 ? body.Substring(0, 300) + "..." : body;
+                logger.LogInformation("  Body: {Body}", logBody);
+            }
+        }
+    }
+
+    await next();
+
+    if (context.Request.Method == "POST" && context.Request.Path.StartsWithSegments("/api/messages"))
+    {
+        logger.LogInformation("<<< Response: {StatusCode}", context.Response.StatusCode);
+        logger.LogInformation("========================================");
+    }
+});
 
 // Enable AspNet authentication and authorization
 app.UseAuthentication();

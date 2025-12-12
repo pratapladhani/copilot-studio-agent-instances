@@ -1,0 +1,57 @@
+{
+  "$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/vDevPreview/MicrosoftTeams.schema.json",
+  "manifestVersion": "devPreview",
+  "version": "1.0.0",
+  "id": "c727c5a9-b404-4861-b10a-9d9bd4c1f3c3",
+  "developer": {
+    "name": "Your Team",
+    "websiteUrl": "https://contoso.com",
+    "privacyUrl": "https://contoso.com/privacy",
+    "termsOfUseUrl": "https://contoso.com/terms"
+  },
+  "name": {
+    "short": "Budget Advisor",
+    "full": "Budget Advisor Agent"
+  },
+  "description": {
+    "short": "Budget compliance advisor agent",
+    "full": "An AI agent that helps with budget compliance, SOW review, and policy exceptions."
+  },
+  "icons": {
+    "color": "color.png",
+    "outline": "outline.png"
+  },
+  "accentColor": "#4464ee",
+  "validDomains": [],
+  "webApplicationInfo": {
+    "id": "c727c5a9-b404-4861-b10a-9d9bd4c1f3c3",
+    "resource": "api://c727c5a9-b404-4861-b10a-9d9bd4c1f3c3"
+  },
+  "bots": [
+    {
+      "botId": "c727c5a9-b404-4861-b10a-9d9bd4c1f3c3",
+      "scopes": ["personal", "team", "groupChat", "copilot"],
+      "supportsFiles": false,
+      "isNotificationOnly": false
+    }
+  ],
+  "copilotAgents": {
+    "customEngineAgents": [
+      {
+        "id": "c727c5a9-b404-4861-b10a-9d9bd4c1f3c3",
+        "type": "bot",
+        "disclaimer": {
+          "text": "This agent uses AI. Please verify important information."
+        },
+        "functionsAs": "agenticUserOnly",
+        "agenticUserTemplateId": "digitalWorkerTemplate"
+      }
+    ]
+  },
+  "agenticUserTemplates": [
+    {
+      "id": "digitalWorkerTemplate",
+      "file": "agenticUserTemplateManifest.json"
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "schemaVersion": "0.1.0-preview",
+  "id": "digitalWorkerTemplate",
+  "agentIdentityBlueprintId": "c727c5a9-b404-4861-b10a-9d9bd4c1f3c3",
+  "communicationProtocol": "activityProtocol"
+}

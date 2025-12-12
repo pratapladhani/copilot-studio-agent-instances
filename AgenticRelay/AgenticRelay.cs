@@ -30,6 +30,7 @@ namespace OBOAuthorization
             {
                 a365.OnAgentNotification("*", OnAgentNotification, autoSignInHandlers: ["agentic"]);
             });
+            // isAgenticOnly: true means only Agent User messages are processed
             OnActivity(ActivityTypes.Message, OnGeneralActivity, isAgenticOnly: true, autoSignInHandlers: ["agentic"]);
         }
 

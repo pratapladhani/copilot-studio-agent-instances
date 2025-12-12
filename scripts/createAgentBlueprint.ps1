@@ -36,16 +36,14 @@ function Read-ConfigFile {
             $msiId = $configContent.ManagedIdentityId
         }
         
-        if (-not $msiId) {
-            Write-Host "ERROR: Config file is missing 'MsiPrincipalId' or 'ManagedIdentityId' property" -ForegroundColor Red
-            exit 1
+        # MSI is optional - only needed for Azure App Service with managed identity
+        if ($msiId) {
+            $configContent | Add-Member -NotePropertyName "MsiPrincipalId" -NotePropertyValue $msiId -Force
         }
         
-        # Add the standardized property to the config object
-        $configContent | Add-Member -NotePropertyName "MsiPrincipalId" -NotePropertyValue $msiId -Force
-        
         return $configContent
-    } catch {
+    }
+    catch {
         Write-Host "ERROR: Failed to parse config file: $($_.Exception.Message)" -ForegroundColor Red
         exit 1
     }
@@ -54,10 +52,10 @@ function Read-ConfigFile {
 # Function to create Agent Blueprint
 function createAgentBlueprint {
     param(
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [string]$TenantId,
         
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [string]$DisplayName
     )
 
@@ -68,19 +66,18 @@ function createAgentBlueprint {
         Write-Host "Sponsor details: "https://graph.microsoft.com/v1.0/users/$($currentUser.Id)" -ForegroundColor Gray"
     
         $body = @{
-            "@odata.type" = "Microsoft.Graph.AgentIdentityBlueprint"
-            displayName   = $DisplayName
+            "@odata.type"         = "Microsoft.Graph.AgentIdentityBlueprint"
+            displayName           = $DisplayName
             "sponsors@odata.bind" = @("https://graph.microsoft.com/v1.0/users/$($currentUser.Id)")
         }
         $response = Invoke-MgGraphRequest -Method POST `
-                -Uri "https://graph.microsoft.com/beta/applications/" `
-                -Headers @{ "OData-Version" = "4.0" } `
-                -Body ($body | ConvertTo-Json)
+            -Uri "https://graph.microsoft.com/beta/applications/" `
+            -Headers @{ "OData-Version" = "4.0" } `
+            -Body ($body | ConvertTo-Json)
     }
     catch {
         
-        if ($_.Exception.Response.StatusCode.value__ -eq 400)
-        {
+        if ($_.Exception.Response.StatusCode.value__ -eq 400) {
             Write-Host "Agent Blueprint creation failed with Bad Request (400). Fallback to call without sponsor request..."
 
             $body = @{
@@ -88,9 +85,9 @@ function createAgentBlueprint {
                 displayName   = $DisplayName
             }
             $fallbackResponse = Invoke-MgGraphRequest -Method POST `
-                    -Uri "https://graph.microsoft.com/beta/applications/" `
-                    -Headers @{ "OData-Version" = "4.0" } `
-                    -Body ($body | ConvertTo-Json)
+                -Uri "https://graph.microsoft.com/beta/applications/" `
+                -Headers @{ "OData-Version" = "4.0" } `
+                -Body ($body | ConvertTo-Json)
 
             return $fallbackResponse
         }
@@ -101,10 +98,10 @@ function createAgentBlueprint {
 # Function to create Service Principal
 function createServicePrincipal {
     param(
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [string]$TenantId,
         
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [string]$AppId
     )
     
@@ -113,9 +110,9 @@ function createServicePrincipal {
     }
     #this is a workaround needed until the serviceprincipals/graph.agentServicePrincipal is supported in the new tenants.
     $response = Invoke-MgGraphRequest -Method POST `
-            -Uri "https://graph.microsoft.com/beta/serviceprincipals" `
-            -Headers @{ "OData-Version" = "4.0" } `
-            -Body ($body | ConvertTo-Json)
+        -Uri "https://graph.microsoft.com/beta/serviceprincipals" `
+        -Headers @{ "OData-Version" = "4.0" } `
+        -Body ($body | ConvertTo-Json)
     
     return $response
 }
@@ -123,16 +120,16 @@ function createServicePrincipal {
 # Function to create Federated Identity Credential
 function createFederatedIdentityCredential {
     param(
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [string]$TenantId,
         
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [string]$AgentBlueprintObjectId,
 
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [string]$CredentialName,
         
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [string]$MsiPrincipalId
     )
     
@@ -153,7 +150,7 @@ function createFederatedIdentityCredential {
 # Function to read MCP scopes from ToolingManifest.json
 function Get-McpScopesFromManifest {
     param(
-        [Parameter(Mandatory=$false)]
+        [Parameter(Mandatory = $false)]
         [string]$ManifestPath
     )
     
@@ -164,7 +161,8 @@ function Get-McpScopesFromManifest {
         $defaultManifestPath = Join-Path $PSScriptRoot "ToolingManifest.json"
         if (Test-Path $defaultManifestPath) {
             $ManifestPath = $defaultManifestPath
-        } else {
+        }
+        else {
             Write-Host "INFO: No ToolingManifest.json found at $defaultManifestPath, skipping MCP scopes" -ForegroundColor Yellow
             return $mcpScopes
         }
@@ -201,11 +199,13 @@ function Get-McpScopesFromManifest {
         
         if ($mcpScopes.Count -gt 0) {
             Write-Host "Total MCP scopes found: $($mcpScopes.Count)" -ForegroundColor Cyan
-        } else {
+        }
+        else {
             Write-Host "No MCP scopes found in manifest" -ForegroundColor Yellow
         }
         
-    } catch {
+    }
+    catch {
         Write-Host "WARNING: Failed to read ToolingManifest.json: $($_.Exception.Message)" -ForegroundColor Yellow
         Write-Host "Continuing without MCP scopes..." -ForegroundColor Yellow
     }
@@ -216,16 +216,16 @@ function Get-McpScopesFromManifest {
 # Function to configure Agent Blueprint Scope
 function configureAgentBlueprintScope {
     param(
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [string]$TenantId,
         
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [string]$AgentBlueprintObjectId,
         
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [string]$AgentBlueprintId,
         
-        [Parameter(Mandatory=$false)]
+        [Parameter(Mandatory = $false)]
         [string]$ToolingManifestPath
     )
 
@@ -239,10 +239,10 @@ function configureAgentBlueprintScope {
     $defaultScope = @{
         adminConsentDescription = "Allow the application to access the agent on behalf of the signed-in user."
         adminConsentDisplayName = "Access agent"
-        id = $defaultScopeId
-        isEnabled = $true
-        type = "User"
-        value = "access_agent"
+        id                      = $defaultScopeId
+        isEnabled               = $true
+        type                    = "User"
+        value                   = "access_agent"
     }
     $scopes += $defaultScope
     
@@ -254,10 +254,10 @@ function configureAgentBlueprintScope {
         $mcpScopeObj = @{
             adminConsentDescription = "Allow the application to access MCP server requiring scope: $mcpScope"
             adminConsentDisplayName = "MCP Access: $mcpScope"
-            id = $mcpScopeId
-            isEnabled = $true
-            type = "User"
-            value = $mcpScope
+            id                      = $mcpScopeId
+            isEnabled               = $true
+            type                    = "User"
+            value                   = $mcpScope
         }
         $scopes += $mcpScopeObj
         Write-Host "Added MCP scope to blueprint: $mcpScope" -ForegroundColor Green
@@ -265,9 +265,18 @@ function configureAgentBlueprintScope {
     
     Write-Host "Configuring blueprint with $($scopes.Count) OAuth2 permission scopes" -ForegroundColor Cyan
 
-    $response = Update-MgApplication -ApplicationId $AgentBlueprintObjectId `
-        -IdentifierUris @($IdentifierUri) `
-        -Api @{ oauth2PermissionScopes = $scopes }
+    # Use beta API for Agent Blueprints since v1.0 doesn't support them
+    $body = @{
+        identifierUris = @($IdentifierUri)
+        api            = @{
+            oauth2PermissionScopes = $scopes
+        }
+    }
+    
+    $response = Invoke-MgGraphRequest -Method PATCH `
+        -Uri "https://graph.microsoft.com/beta/applications/$AgentBlueprintObjectId" `
+        -Body ($body | ConvertTo-Json -Depth 10) `
+        -ContentType "application/json"
     
     return $response
 }

@@ -191,14 +191,26 @@ public static class AspNetExtensions
 
                 OnTokenValidated = context =>
                 {
+                    // Log successful validation for debugging
+                    var claims = context.Principal?.Claims;
+                    var issuer = claims?.FirstOrDefault(c => c.Type == "iss")?.Value ?? "unknown";
+                    var audience = claims?.FirstOrDefault(c => c.Type == "aud")?.Value ?? "unknown";
+                    System.Diagnostics.Trace.WriteLine($"Token validated - Issuer: {issuer}, Audience: {audience}");
+                    Console.WriteLine($"[AUTH] Token validated - Issuer: {issuer}, Audience: {audience}");
                     return Task.CompletedTask;
                 },
                 OnForbidden = context =>
                 {
+                    System.Diagnostics.Trace.WriteLine($"Authentication forbidden: {context.Result?.Failure?.Message}");
+                    Console.WriteLine($"[AUTH] Forbidden: {context.Result?.Failure?.Message}");
                     return Task.CompletedTask;
                 },
                 OnAuthenticationFailed = context =>
                 {
+                    // Log the failure reason for debugging
+                    var exception = context.Exception;
+                    System.Diagnostics.Trace.WriteLine($"Authentication failed: {exception?.GetType().Name} - {exception?.Message}");
+                    Console.WriteLine($"[AUTH] Failed: {exception?.GetType().Name} - {exception?.Message}");
                     return Task.CompletedTask;
                 }
             };

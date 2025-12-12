@@ -114,55 +114,103 @@ function New-AgentUser {
         [bool]$AccountEnabled = $true,
 
         [Parameter(Mandatory=$false)]
-        [string]$UsageLocation = 'US'
+        [string]$UsageLocation = 'US',
+
+        [Parameter(Mandatory = $false)]
+        [int]$MaxRetries = 3,
+
+        [Parameter(Mandatory = $false)]
+        [int]$RetryDelaySeconds = 15
     )
     
     # Connect to Graph with beta profile
     Connect-MgGraph -Scopes "User.ReadWrite.All" -TenantId $TenantId
 
-    # Define request body
-    $body = @{
-        "@odata.type"       = "microsoft.graph.agentUser"
-        displayName         = $DisplayName
-        userPrincipalName   = $UserPrincipalName
-        mailNickname        = $MailNickname
-        accountEnabled      = $AccountEnabled
-        usageLocation       = $UsageLocation
-        identityParent      = @{
-                                  id = $AgentIdentityId
-                               }
-    } | ConvertTo-Json -Depth 5
-
-    
-    # Check if user already exists
+    # Check if user already exists first
     try {
-        $existingUser = Get-AzADUser -ObjectId $UserPrincipalName -ErrorAction Stop
-        Write-Host "User already exists: $($existingUser.DisplayName) ($($existingUser.UserPrincipalName))." -ForegroundColor Yellow
-        Write-Host "Using existing user instead of creating new one." -ForegroundColor Green
-        
-        # Create a response object that matches the expected format
-        $response = @{
-            id = $existingUser.Id
-            displayName = $existingUser.DisplayName
-            userPrincipalName = $existingUser.UserPrincipalName
-            usageLocation = $existingUser.UsageLocation
+        $existingUser = Get-MgUser -UserId $UserPrincipalName -ErrorAction Stop
+        if ($existingUser) {
+            Write-Host "User already exists: $($existingUser.DisplayName) ($($existingUser.UserPrincipalName))." -ForegroundColor Yellow
+            Write-Host "Using existing user instead of creating new one." -ForegroundColor Green
+            
+            # Create a response object that matches the expected format
+            $response = @{
+                id                = $existingUser.Id
+                displayName       = $existingUser.DisplayName
+                userPrincipalName = $existingUser.UserPrincipalName
+                usageLocation     = $existingUser.UsageLocation
+            }
+            return $response
         }
-        return $response
     }
     catch {
-       # User does not exist, proceed with creation
+        # User does not exist, proceed with creation
     }
 
-    $response = Invoke-MgGraphRequest -Method POST -Uri "https://graph.microsoft.com/beta/users" -Body $body -ContentType "application/json"
-    return $response
+    # Define request body
+    $body = @{
+        "@odata.type"     = "microsoft.graph.agentUser"
+        displayName       = $DisplayName
+        userPrincipalName = $UserPrincipalName
+        mailNickname      = $MailNickname
+        accountEnabled    = $AccountEnabled
+        usageLocation     = $UsageLocation
+        identityParent    = @{
+            id = $AgentIdentityId
+        }
+    } | ConvertTo-Json -Depth 5
+
+    # Retry logic for user creation (Identity propagation can take time)
+    $retryCount = 0
+    $lastError = $null
+    
+    while ($retryCount -lt $MaxRetries) {
+        try {
+            $response = Invoke-MgGraphRequest -Method POST -Uri "https://graph.microsoft.com/beta/users" -Body $body -ContentType "application/json"
+            return $response
+        }
+        catch {
+            $lastError = $_
+            $retryCount++
+            
+            # Check if it's a "conflicting object" error (user was created)
+            if ($_.Exception.Message -match "conflicting object") {
+                Write-Host "User may have been created, checking..." -ForegroundColor Yellow
+                Start-Sleep -Seconds 5
+                try {
+                    $existingUser = Get-MgUser -UserId $UserPrincipalName -ErrorAction Stop
+                    if ($existingUser) {
+                        return @{
+                            id                = $existingUser.Id
+                            displayName       = $existingUser.DisplayName
+                            userPrincipalName = $existingUser.UserPrincipalName
+                            usageLocation     = $existingUser.UsageLocation
+                        }
+                    }
+                }
+                catch { }
+            }
+            
+            # Check if it's an Identity propagation issue
+            if ($_.Exception.Message -match "IdentityParent does not exist" -and $retryCount -lt $MaxRetries) {
+                Write-Host "   Identity not yet propagated, waiting $RetryDelaySeconds seconds... (Attempt $retryCount of $MaxRetries)" -ForegroundColor Yellow
+                Start-Sleep -Seconds $RetryDelaySeconds
+            }
+            elseif ($retryCount -ge $MaxRetries) {
+                throw $lastError
+            }
+        }
+    }
+    
+    throw $lastError
 }
 
 function Set-AgentUserManager {
     param(
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [string]$UserId,
         
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [string]$ManagerEmail
     )
     
@@ -180,7 +228,8 @@ function Set-AgentUserManager {
             Invoke-MgGraphRequest -Method PUT -Uri "https://graph.microsoft.com/v1.0/users/$UserId/manager/`$ref" -Body $body -ContentType "application/json"
             
             return $manager
-        } else {
+        }
+        else {
             Write-Host "WARNING: Manager with email '$ManagerEmail' not found. Skipping manager assignment." -ForegroundColor Yellow
             return $null
         }
@@ -262,9 +311,10 @@ Write-Host "--------------------------------------------------------------------
 
 try {
     Connect-MgGraph -TenantId $TenantId
-} catch {
+}
+catch {
     Write-Host "ERROR: Failed to connect to Microsoft Graph. Please ensure you have the Microsoft Graph PowerShell SDK installed and try again." -ForegroundColor Red
-exit 1
+    exit 1
 }
 
 # 1. Get Agent Blueprint token
@@ -278,7 +328,8 @@ try {
     $expiresInMinutes = [math]::Round($agentBlueprintGraphToken.expires_in / 60, 1)
     Write-Host "   Expires In: $expiresInMinutes minutes" -ForegroundColor Cyan
 
-} catch {
+}
+catch {
     Write-Host "ERROR: Failed to get Agent Blueprint token" -ForegroundColor Red
     Write-Host "   Details: $($_.Exception.Message)" -ForegroundColor Gray
     exit 1
@@ -321,9 +372,10 @@ if (-not $existingAgentIdentityId -or -not $agentIdentity) {
         Write-Host "   Agent Identity ID: $($agentIdentity.id)" -ForegroundColor Cyan
         Write-Host "   Display Name: $($agentIdentity.displayName)" -ForegroundColor Cyan
         
-        Write-Host "Waiting 10 seconds to ensure Agent Identity is fully propagated..." -ForegroundColor Gray
-        Start-Sleep -Seconds 10
-    } catch {
+        Write-Host "Waiting 30 seconds to ensure Agent Identity is fully propagated..." -ForegroundColor Gray
+        Start-Sleep -Seconds 30
+    }
+    catch {
         Write-Host "ERROR: Failed to create Agent Identity" -ForegroundColor Red
         Write-Host "   Details: $($_.Exception.Message)" -ForegroundColor Gray
         exit 1
@@ -350,7 +402,8 @@ try {
     Write-Host "Agent User created successfully!" -ForegroundColor Green
     Write-Host "   Agent User ID: $($agentUser.id)" -ForegroundColor Cyan
     Write-Host "   Agent User Principal Name: $($agentUser.userPrincipalName)" -ForegroundColor Cyan
-} catch {
+}
+catch {
     Write-Host "ERROR: Failed to create Agent User" -ForegroundColor Red
     Write-Host "$($_)"
     Write-Host "   Details: $($_.Exception.Message)" -ForegroundColor Gray
@@ -365,7 +418,8 @@ try {
             Write-Host "   Agent User Principal Name: $($existingUser.UserPrincipalName)" -ForegroundColor Cyan
             $agentUser = $existingUser
         }
-    } catch {
+    }
+    catch {
         Write-Host "Could not find existing user: $($_.Exception.Message)" -ForegroundColor Yellow
         # Continue anyway to save at least the identity ID
         $agentUser = $null
@@ -388,11 +442,13 @@ if ($managerEmail -and $agentUser -and $agentUser.id) {
             Write-Host "   Manager Name: $($assignedManager.DisplayName)" -ForegroundColor Cyan
             Write-Host "   Manager Email: $($assignedManager.Mail)" -ForegroundColor Cyan
         }
-    } catch {
+    }
+    catch {
         Write-Host "ERROR: Failed to assign manager" -ForegroundColor Red
         Write-Host "   Details: $($_.Exception.Message)" -ForegroundColor Gray
     }
-} else {
+}
+else {
     Write-Host "Skipping manager assignment." -ForegroundColor Gray
 }
 
@@ -422,14 +478,23 @@ if ($ConfigFile -and (Test-Path $ConfigFile)) {
         
         # Always update identity ID (this should always be available)
         if ($agentIdentity -and $agentIdentity.id) {
-            $config.AgentIdentityId = $agentIdentity.id
+            if ($config.PSObject.Properties.Match('AgentIdentityId').Count) {
+                $config.AgentIdentityId = $agentIdentity.id
+            }
+            else {
+                $config | Add-Member -NotePropertyName 'AgentIdentityId' -NotePropertyValue $agentIdentity.id -Force
+            }
             Write-Host "   Updated AgentIdentityId: $($agentIdentity.id)" -ForegroundColor Green
         }
         
         # Update user ID only if user was created or found
         if ($agentUser -and $agentUser.id) {
-            $config.AgentUserId = $agentUser.id
-            $config.AgentUserPrincipalName = $agentUser.userPrincipalName
+            if ($config.PSObject.Properties.Match('AgentUserId').Count) {
+                $config.AgentUserId = $agentUser.id
+            }
+            else {
+                $config | Add-Member -NotePropertyName 'AgentUserId' -NotePropertyValue $agentUser.id -Force
+            }
             Write-Host "   Updated AgentUserId: $($agentUser.id)" -ForegroundColor Green
         } else {
             Write-Host "   Skipped AgentUserId (user not available)" -ForegroundColor Yellow

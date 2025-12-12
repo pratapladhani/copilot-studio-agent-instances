@@ -1,0 +1,20 @@
+{
+  "tenantId": "b4d63962-b17c-4e17-b121-b6d6e227ba06",
+  "subscriptionId": "2df711a1-b42b-4c8c-98c6-ba6f07a8b06a",
+  "resourceGroup": "rg-agent-bots",
+  "location": "westeurope",
+  "environment": "prod",
+
+  "needDeployment": false,
+  "messagingEndpoint": "https://budget-advisor-relay.azurewebsites.net/api/messages",
+
+  "clientAppId": "14d82eec-204b-4c2f-b7e8-296a70dab67e",
+
+  "agentIdentityDisplayName": "Budget Advisor Identity",
+  "agentBlueprintDisplayName": "Budget Advisor",
+  "agentBlueprintId": "c727c5a9-b404-4861-b10a-9d9bd4c1f3c3",
+  "agentUserPrincipalName": "budget-advisor@M365CPI52041318.onmicrosoft.com",
+  "agentUserDisplayName": "Budget Advisor",
+
+  "deploymentProjectPath": "AgenticRelay"
+}

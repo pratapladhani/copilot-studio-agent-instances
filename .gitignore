@@ -232,3 +232,20 @@ src/samples/ModelContextProtocol/GitHubMCPServer/Properties/ServiceDependencies/
 
 # AgentSDK transcripts files
 **/*.transcript
+# Agent 365 CLI and deployment files
+.mos-token-cache.json
+a365.generated.config.json
+**/deploy.zip
+**/deploy/
+**/publish/
+
+# Agent-specific config files with secrets (use templates instead)
+scripts/*-config.json
+scripts/*-blueprint-config.json
+scripts/*-user-config.json
+
+# Manifest packages (can be regenerated)
+**/manifest.zip
+
+# Local appsettings with secrets (use environment variables in production)
+AgenticRelay/appsettings.json

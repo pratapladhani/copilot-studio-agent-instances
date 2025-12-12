@@ -1,0 +1,6 @@
+{
+  "id": "7b0926a6-c4ee-445a-a913-bd054594bd09",
+  "schemaVersion": "0.1.0-preview",
+  "agentIdentityBlueprintId": "c727c5a9-b404-4861-b10a-9d9bd4c1f3c3",
+  "communicationProtocol": "activityProtocol"
+}
