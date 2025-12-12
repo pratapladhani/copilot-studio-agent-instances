@@ -6,6 +6,9 @@ This sample demonstrates how to call Copilot Studio Agents from an Agent instanc
 
 Run the following scripts. You can find the scripts in the `scripts` folder.
 
+> [!WARNING]
+> It is now recommended to use the [Microsoft Agent 365 DevTools CLI](https://github.com/microsoft/Agent365-DevTools) instead of the scripts in this repo to create blueprints, agent IDs, and agent users.
+
 ### 1. Creating Delegated Consent for Agent Application Creation
 
 **Script:** `DelegatedAgentApplicationCreateConsent.ps1`
