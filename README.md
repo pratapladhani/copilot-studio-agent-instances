@@ -6,6 +6,9 @@ This sample demonstrates how to call Copilot Studio Agents from an Agent instanc
 
 Run the following scripts. You can find the scripts in the `scripts` folder.
 
+> [!WARNING]
+> It is now recommended to use the [Microsoft Agent 365 DevTools CLI](https://github.com/microsoft/Agent365-DevTools) instead of the scripts in this repo to create blueprints, agent IDs, and agent users.
+
 ### 1. Creating Delegated Consent for Agent Application Creation
 
 **Script:** `DelegatedAgentApplicationCreateConsent.ps1`
@@ -457,7 +460,7 @@ Follow the steps in [README_AgentUserCreation.md](./scripts/README_AgentUserCrea
 ### 3. Approve scopes
 After creating the Agent User, you need to approve the delegated scopes for the Agent Identity so that the Agent User can access the necessary resources. To do so, navigate to these URLs in your browser (replace `<TenantId>` and `<AgentIdentityId>` with your actual Tenant ID and Agent Identity Application ID):
 
-- https://login.microsoftonline.com/<TenantId>/v2.0/adminconsent?client_id=<AgentIdentityId>&scope=User.ReadBasic.All Mail.Send Mail.Read Chat.Read Chat.ReadWrite 8578e004-a5c6-46e7-913e-12f58912df43/CopilotStudio.Copilots.Invoke 0ddb742a-e7dc-4899-a31e-80e797ec7144/CopilotStudio.Copilots.Invoke&redirect_uri=https://entra.microsoft.com/TokenAuthorize&state=xyz123
+- https://login.microsoftonline.com/<TenantId>/v2.0/adminconsent?client_id=<AgentIdentityId>&scope=User.ReadBasic.All Mail.Send Mail.Read Chat.Read Chat.ReadWrite 8578e004-a5c6-46e7-913e-12f58912df43/CopilotStudio.Copilots.Invoke&redirect_uri=https://entra.microsoft.com/TokenAuthorize&state=xyz123
 
 ## Create an agent in Copilot Studio
 

@@ -1,5 +1,8 @@
 ## Creating the Agent Identity & Agent User
 
+> [!WARNING]
+> It is now recommended to use the [Microsoft Agent 365 DevTools CLI](https://github.com/microsoft/Agent365-DevTools) instead of the scripts in this repo to create blueprints, agent IDs, and agent users.
+
 This process will automatically create an Agent Identity (based on the Agent Blueprint Id) and the Agent User which is coming from the Agent Identity.
 
 To create the Agent Identity & Agent User, run this script in PowerShell:
@@ -39,15 +42,11 @@ https://login.microsoftonline.com/<TenantId>/v2.0/adminconsent?client_id=<AgentI
 **Note:** This is giving access to `User.ReadBasic.All Mail.Send Mail.Read Chat.Read Chat.ReadWrite`, you can expand the permissions if needed.
 if it redirects after accepting using permissions and we see https://entra.microsoft.com/TokenAuthorize?admin_consent=True in the url, then its done. Permissions can be validated for the Agent Identity Id in the azure portal.
 
-**Example for non-Graph scopes** (Connectivity.Connections.Read needed for MCP Tools):
+**Example for non-Graph scopes**:
 ```
-https://login.microsoftonline.com/5369a35c-46a5-4677-8ff9-2e65587654e7/v2.0/adminconsent?client_id=416fa9f7-e69d-4e7b-8c8f-7b116634d34e&scope=0ddb742a-e7dc-4899-a31e-80e797ec7144/Connectivity.Connections.Read&redirect_uri=https://entra.microsoft.com/TokenAuthorize&state=xyz123
+https://login.microsoftonline.com/5369a35c-46a5-4677-8ff9-2e65587654e7/v2.0/adminconsent?client_id=416fa9f7-e69d-4e7b-8c8f-7b116634d34e&scope=8578e004-a5c6-46e7-913e-12f58912df43/Connectivity.Connections.Read&redirect_uri=https://entra.microsoft.com/TokenAuthorize&state=xyz123
 ```
-
-For non-Graph scopes note that you need to add the resourceId to the scope: `0ddb742a-e7dc-4899-a31e-80e797ec7144/Connectivity.Connections.Read` in the example above.
 
 Once this is done, you should be able to see the permissions granted in the Azure portal for your agent application.
-
-For MCP tools you need to get the resource id for Power Platform API (and Power Platform API - Test). To get these, search for these apps in your azure tenant, open the service principal and copy the application id. 
 
 Alternatively, you can manage permissions by going to your Agent Identity in Azure portal and navigating to Security > Permissions.
